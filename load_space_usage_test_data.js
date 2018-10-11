@@ -1,14 +1,13 @@
+const mongoose = require('mongoose');
 const Client = require('./client_model');
 const Space = require('./space_model');
 const SpaceUsage = require('./space_usage_model');
-const mongoose = require('mongoose');
 
 let spaceUsageDbConnection;
 
 const loadSpaceUsageDbConnection = async () => {
   if (!spaceUsageDbConnection) {
-    spaceUsageDbConnection
-      = await mongoose.connect('mongodb://localhost:27018/space_usage_dev', { useNewUrlParser: true });
+    spaceUsageDbConnection = await mongoose.connect('mongodb://localhost:27018/space_usage_dev', { useNewUrlParser: true });
   }
 };
 
@@ -19,12 +18,17 @@ const ensureCollectionEmpty = async (model) => {
   }
 };
 
-const generateTestSpaces = (numberOfDeskSpaces, deskSpaceCategories) => {
+const generateTestSpaces = (startingSpaceNumber, numberOfDeskSpaces, deskSpaceCategories) => {
   const spaces = [];
 
-  for (let spaceNumber = 0; spaceNumber < numberOfDeskSpaces; spaceNumber += 1) {
-    const deskSpaceCategoryIndex
-      = Math.floor((Math.random() * (deskSpaceCategories.length - 1)) + 0);
+  for (
+    let spaceNumber = startingSpaceNumber;
+    spaceNumber < (numberOfDeskSpaces + startingSpaceNumber);
+    spaceNumber += 1
+  ) {
+    const deskSpaceCategoryIndex = Math.floor(
+      (Math.random() * (deskSpaceCategories.length - 1)) + 0,
+    );
     const deskSpaceCategory = deskSpaceCategories[deskSpaceCategoryIndex];
 
     spaces.push({
@@ -38,29 +42,42 @@ const generateTestSpaces = (numberOfDeskSpaces, deskSpaceCategories) => {
   return spaces;
 };
 
-const loadSpacesIntoTestDb = async () => {
+const generateDeskSpaces = () => {
+  const numberOfDeskSpaces = 50;
+  const deskSpaceCategories = [
+    'Fixed desks space',
+    'Touchdown desks space',
+    'Quiet desks space',
+  ];
+  const startingSpaceNumber = 0;
+
+  return generateTestSpaces(startingSpaceNumber, numberOfDeskSpaces, deskSpaceCategories);
+};
+
+const generateSharedSpaces = (startingSpaceNumber) => {
+  const numberOfSharedSpaces = 50;
+  const sharedSpaceCategories = [
+    'Meeting room',
+    'Canteen',
+    'Prayer room',
+    'Gym',
+    'Edit suites',
+  ];
+
+  return generateTestSpaces(startingSpaceNumber, numberOfSharedSpaces, sharedSpaceCategories);
+};
+
+const generateSpacesInTestDb = async () => {
   try {
     await ensureCollectionEmpty(Space);
-    await ensureCollectionEmpty(SpaceUsage);
 
-    const numberOfDeskSpaces = 50;
-    const deskSpaceCategories = [
-      'Fixed desks space',
-      'Touchdown desks space',
-      'Quiet desks space',
-    ];
-    const deskSpaces = generateTestSpaces(numberOfDeskSpaces, deskSpaceCategories);
+    let startingSpaceNumber = 0;
+    const deskSpaces = generateDeskSpaces(startingSpaceNumber);
 
-    const numberOfSharedSpaces = 50;
-    const sharedSpaceCategories = [
-      'Meeting room',
-      'Canteen',
-      'Prayer room',
-      'Gym',
-      'Edit suites',
-    ];
-    const spaces
-      = deskSpaces.concat(generateTestSpaces(numberOfSharedSpaces, sharedSpaceCategories));
+    startingSpaceNumber = 50;
+    const sharedSpaces = generateSharedSpaces(startingSpaceNumber);
+
+    const spaces = deskSpaces.concat(sharedSpaces);
 
     await Space.insertMany(spaces);
 
@@ -74,7 +91,7 @@ const loadSpacesIntoTestDb = async () => {
 const generateTestSpaceUsages = (spaces) => {
   const spaceUsages = [];
 
-  const numberOfSpaceUsagePeriods = 180 * 24 * 4;
+  const numberOfSpaceUsagePeriods = 24 * 4;
   const startOfPeriod = new Date('April 10, 2018 00:00:00').getTime();
 
   for (const space of spaces) {
@@ -87,8 +104,8 @@ const generateTestSpaceUsages = (spaces) => {
 
       spaceUsages.push({
         spaceId: space._id,
-        usagePeriodStartTime: startOfPeriod + ((spaceUsagePeriodNumber - 1) * (15 * 60 * 60)),
-        usagePeriodEndTime: startOfPeriod + (spaceUsagePeriodNumber * (15 * 60 * 60)),
+        usagePeriodStartTime: startOfPeriod + ((spaceUsagePeriodNumber - 1) * (15 * 60 * 1000)),
+        usagePeriodEndTime: startOfPeriod + (spaceUsagePeriodNumber * (15 * 60 * 1000)),
         numberOfPeopleRecorded,
         occupancy: numberOfPeopleRecorded / space.occupancyCapacity,
       });
@@ -98,7 +115,7 @@ const generateTestSpaceUsages = (spaces) => {
   return spaceUsages;
 };
 
-const loadSpaceUsagesIntoTestDb = async (spaces) => {
+const generateSpaceUsagesInTestDb = async (spaces) => {
   try {
     await ensureCollectionEmpty(SpaceUsage);
 
@@ -110,15 +127,15 @@ const loadSpaceUsagesIntoTestDb = async (spaces) => {
   }
 };
 
-const loadClientIntoTestDb = async (spaceIds) => {
+const generateClientInTestDb = async (spaceIds) => {
   try {
     await ensureCollectionEmpty(Client);
 
     const client = new Client({
-      name: 'Accuware',
+      name: 'Best Client Ltd.',
       sites: [
         {
-          _id: '1001',
+          _id: '1',
           name: 'Head office',
           floors: [
             { name: 'Ground floor', spaceIds },
@@ -136,12 +153,14 @@ const loadClientIntoTestDb = async (spaceIds) => {
 const loadDataIntoTestSpaceUsageDb = async () => {
   await loadSpaceUsageDbConnection();
 
-  const { spaces, spaceIds } = await loadSpacesIntoTestDb();
+  const { spaces, spaceIds } = await generateSpacesInTestDb();
 
-  loadClientIntoTestDb(spaceIds);
+  await generateSpaceUsagesInTestDb(spaces);
 
-  await loadSpaceUsagesIntoTestDb(spaces);
+  await generateClientInTestDb(spaceIds);
+
+  await spaceUsageDbConnection.connection.close();
+  process.exit();
 };
 
 loadDataIntoTestSpaceUsageDb();
-
