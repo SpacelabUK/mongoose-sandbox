@@ -19,10 +19,10 @@ const ensureCollectionEmpty = async (model) => {
   }
 };
 
-const generateSpacesTestData = (numberOfDeskSpaces, deskSpaceCategories) => {
+const generateTestSpaces = (numberOfDeskSpaces, deskSpaceCategories) => {
   const spaces = [];
 
-  for (let spaceNumber = 0; spaceNumber <= numberOfDeskSpaces; spaceNumber += 1) {
+  for (let spaceNumber = 0; spaceNumber < numberOfDeskSpaces; spaceNumber += 1) {
     const deskSpaceCategoryIndex
       = Math.floor((Math.random() * (deskSpaceCategories.length - 1)) + 0);
     const deskSpaceCategory = deskSpaceCategories[deskSpaceCategoryIndex];
@@ -38,7 +38,7 @@ const generateSpacesTestData = (numberOfDeskSpaces, deskSpaceCategories) => {
   return spaces;
 };
 
-const loadSpaceDataIntoTestDb = async () => {
+const loadSpacesIntoTestDb = async () => {
   try {
     await ensureCollectionEmpty(Space);
     await ensureCollectionEmpty(SpaceUsage);
@@ -49,7 +49,7 @@ const loadSpaceDataIntoTestDb = async () => {
       'Touchdown desks space',
       'Quiet desks space',
     ];
-    const spaces = generateSpacesTestData(numberOfDeskSpaces, deskSpaceCategories);
+    const deskSpaces = generateTestSpaces(numberOfDeskSpaces, deskSpaceCategories);
 
     const numberOfSharedSpaces = 50;
     const sharedSpaceCategories = [
@@ -59,26 +59,58 @@ const loadSpaceDataIntoTestDb = async () => {
       'Gym',
       'Edit suites',
     ];
-    spaces.push(generateSpacesTestData(numberOfSharedSpaces, sharedSpaceCategories));
+    const spaces
+      = deskSpaces.concat(generateTestSpaces(numberOfSharedSpaces, sharedSpaceCategories));
 
     await Space.insertMany(spaces);
 
     const spaceIds = spaces.map(space => [space._id]);
-    return spaceIds;
+    return { spaces, spaceIds };
   } catch (error) {
     throw error;
   }
 };
 
-const loadSpaceUsageDataIntoTestDb = async () => {
+const generateTestSpaceUsages = (spaces) => {
+  const spaceUsages = [];
+
+  const numberOfSpaceUsagePeriods = 180 * 24 * 4;
+  const startOfPeriod = new Date('April 10, 2018 00:00:00').getTime();
+
+  for (const space of spaces) {
+    for (
+      let spaceUsagePeriodNumber = 1;
+      spaceUsagePeriodNumber <= numberOfSpaceUsagePeriods;
+      spaceUsagePeriodNumber += 1
+    ) {
+      const numberOfPeopleRecorded = Math.floor((Math.random() * (space.occupancyCapacity)) + 0);
+
+      spaceUsages.push({
+        spaceId: space._id,
+        usagePeriodStartTime: startOfPeriod + ((spaceUsagePeriodNumber - 1) * (15 * 60 * 60)),
+        usagePeriodEndTime: startOfPeriod + (spaceUsagePeriodNumber * (15 * 60 * 60)),
+        numberOfPeopleRecorded,
+        occupancy: numberOfPeopleRecorded / space.occupancyCapacity,
+      });
+    }
+  }
+
+  return spaceUsages;
+};
+
+const loadSpaceUsagesIntoTestDb = async (spaces) => {
   try {
     await ensureCollectionEmpty(SpaceUsage);
+
+    const spaceUsages = generateTestSpaceUsages(spaces);
+
+    await SpaceUsage.insertMany(spaceUsages);
   } catch (error) {
     console.log(error);
   }
 };
 
-const loadClientDataIntoTestDb = async (spaceIds) => {
+const loadClientIntoTestDb = async (spaceIds) => {
   try {
     await ensureCollectionEmpty(Client);
 
@@ -104,9 +136,11 @@ const loadClientDataIntoTestDb = async (spaceIds) => {
 const loadDataIntoTestSpaceUsageDb = async () => {
   await loadSpaceUsageDbConnection();
 
-  const spaceIds = await loadSpaceDataIntoTestDb();
+  const { spaces, spaceIds } = await loadSpacesIntoTestDb();
 
-  loadClientDataIntoTestDb(spaceIds);
+  loadClientIntoTestDb(spaceIds);
+
+  await loadSpaceUsagesIntoTestDb(spaces);
 };
 
 loadDataIntoTestSpaceUsageDb();
