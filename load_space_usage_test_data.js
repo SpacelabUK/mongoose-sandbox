@@ -35,7 +35,7 @@ const generateTestSpaces = (startingSpaceNumber, numberOfDeskSpaces, deskSpaceCa
       _id: spaceNumber.toString(),
       name: `${deskSpaceCategory} ${spaceNumber}`,
       category: deskSpaceCategory,
-      occupancyCapacity: 5,
+      occupancyCapacity: 10,
     });
   }
 
@@ -91,24 +91,47 @@ const generateSpacesInTestDb = async () => {
 const generateTestSpaceUsages = (spaces) => {
   const spaceUsages = [];
 
-  const numberOfSpaceUsagePeriods = 24 * 4;
+  const numberOfHours = 24;
+  const numberOfPeriodsPerHour = 4;
   const startOfPeriod = new Date('April 10, 2018 00:00:00').getTime();
+
+  const numberOfPeopleRecordedByHour = {
+    8: 1,
+    9: 4,
+    10: 6,
+    11: 7,
+    12: 5,
+    13: 2,
+    14: 8,
+    15: 9,
+    16: 7,
+    17: 5,
+    18: 3,
+  };
 
   for (const space of spaces) {
     for (
-      let spaceUsagePeriodNumber = 1;
-      spaceUsagePeriodNumber <= numberOfSpaceUsagePeriods;
-      spaceUsagePeriodNumber += 1
+      let hourNumber = 1;
+      hourNumber <= numberOfHours;
+      hourNumber += 1
     ) {
-      const numberOfPeopleRecorded = Math.floor((Math.random() * (space.occupancyCapacity)) + 0);
-
-      spaceUsages.push({
-        spaceId: space._id,
-        usagePeriodStartTime: startOfPeriod + ((spaceUsagePeriodNumber - 1) * (15 * 60 * 1000)),
-        usagePeriodEndTime: startOfPeriod + (spaceUsagePeriodNumber * (15 * 60 * 1000)),
-        numberOfPeopleRecorded,
-        occupancy: numberOfPeopleRecorded / space.occupancyCapacity,
-      });
+      let numberOfPeopleRecorded = numberOfPeopleRecordedByHour[hourNumber];
+      if (!numberOfPeopleRecorded) {
+        numberOfPeopleRecorded = 0;
+      }
+      for (
+        let spaceUsagePeriodNumber = 1;
+        spaceUsagePeriodNumber <= numberOfPeriodsPerHour;
+        spaceUsagePeriodNumber += 1
+      ) {
+        spaceUsages.push({
+          spaceId: space._id,
+          usagePeriodStartTime: startOfPeriod + ((hourNumber - 1) * 60 * 60 * 1000) + ((spaceUsagePeriodNumber - 1) * 15 * 60 * 1000),
+          usagePeriodEndTime: startOfPeriod + ((hourNumber - 1) * 60 * 60 * 1000) + (spaceUsagePeriodNumber * 15 * 60 * 1000),
+          numberOfPeopleRecorded,
+          occupancy: numberOfPeopleRecorded / space.occupancyCapacity,
+        });
+      }
     }
   }
 
