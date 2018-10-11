@@ -13,6 +13,12 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Load space usage test data",
+      "program": "${workspaceFolder}\\load_space_usage_test_data.js"
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Query space usages",
       "program": "${workspaceFolder}\\query_space_usage_analyst.js"
     },
